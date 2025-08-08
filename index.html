@@ -20,6 +20,7 @@
             --highlight-bg-color: rgba(255, 255, 255, 0.05);
             --danger-color: #ef4444;
             --task-bg-color: #1a1a1a;
+            --hour-height: 120px; /* Increased from 60px */
         }
 
         html.light-mode {
@@ -156,7 +157,7 @@
             width: 80px;
         }
         .time-label {
-            height: 60px; /* Corresponds to 1 hour */
+            height: var(--hour-height); /* Corresponds to 1 hour */
             position: relative;
             text-align: right;
             padding-right: 10px;
@@ -178,7 +179,7 @@
             border-left: 1px solid var(--border-color);
         }
         .hour-line {
-            height: 60px; /* 1 hour */
+            height: var(--hour-height); /* 1 hour */
             border-bottom: 1px solid var(--border-color);
             box-sizing: border-box;
         }
@@ -381,6 +382,7 @@
             let editingTaskId = null;
             let viewStartTime = 8; // 8 AM
             let viewEndTime = 22; // 10 PM
+            const hourHeight = 120; // Increased from 60
 
             // --- Sound and Confetti Logic ---
             let audioCtx;
@@ -425,10 +427,13 @@
 
             function render() {
                 timeLabelsDiv.innerHTML = '';
-                timetableGridDiv.innerHTML = ''; // Clear previous tasks
+                // Clear all children except the current time line
+                while (timetableGridDiv.children.length > 1) {
+                    timetableGridDiv.removeChild(timetableGridDiv.firstChild);
+                }
                 
                 const totalHours = viewEndTime - viewStartTime;
-                timetableGridDiv.style.height = `${totalHours * 60}px`;
+                timetableGridDiv.style.height = `${totalHours * hourHeight}px`;
 
                 // Render time labels and grid lines
                 for (let hour = viewStartTime; hour <= viewEndTime; hour++) {
@@ -440,7 +445,7 @@
                     if (hour < viewEndTime) {
                         const line = document.createElement('div');
                         line.className = 'hour-line';
-                        timetableGridDiv.appendChild(line);
+                        timetableGridDiv.insertBefore(line, currentTimeLine);
                     }
                 }
                 
@@ -449,18 +454,15 @@
                     const startMinutes = timeToMinutes(task.startTime);
                     const endMinutes = timeToMinutes(task.endTime);
                     const viewStartMinutes = viewStartTime * 60;
-                    const viewEndMinutes = viewEndTime * 60;
-
-                    if (endMinutes <= viewStartMinutes || startMinutes >= viewEndMinutes) return; // Skip tasks outside view
-
-                    const top = ((startMinutes - viewStartMinutes) / ((viewEndMinutes - viewStartMinutes))) * 100;
-                    const height = ((endMinutes - startMinutes) / ((viewEndMinutes - viewStartMinutes))) * 100;
+                    
+                    const top = ((startMinutes - viewStartMinutes) / 60) * hourHeight;
+                    const height = ((endMinutes - startMinutes) / 60) * hourHeight;
 
                     const taskBlock = document.createElement('div');
                     taskBlock.className = 'task-block';
                     if (task.completed) taskBlock.classList.add('completed');
-                    taskBlock.style.top = `${top}%`;
-                    taskBlock.style.height = `${height}%`;
+                    taskBlock.style.top = `${top}px`;
+                    taskBlock.style.height = `${height}px`;
                     taskBlock.dataset.taskId = task.id;
 
                     taskBlock.innerHTML = `
@@ -477,15 +479,11 @@
                 const now = new Date();
                 const nowMinutes = now.getHours() * 60 + now.getMinutes();
                 const viewStartMinutes = viewStartTime * 60;
-                const viewEndMinutes = viewEndTime * 60;
 
-                if (nowMinutes >= viewStartMinutes && nowMinutes <= viewEndMinutes) {
-                    const topPercent = ((nowMinutes - viewStartMinutes) / (viewEndMinutes - viewStartMinutes)) * 100;
-                    currentTimeLine.style.top = `${topPercent}%`;
-                    currentTimeLine.style.display = 'block';
-                } else {
-                    currentTimeLine.style.display = 'none';
-                }
+                const topPx = ((nowMinutes - viewStartMinutes) / 60) * hourHeight;
+
+                currentTimeLine.style.top = `${topPx}px`;
+                currentTimeLine.style.display = 'block';
             }
 
             // --- Modal Logic ---
