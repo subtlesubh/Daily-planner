@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subh's Planner</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+    <style>
+        :root {
+            --page-bg-color: #000000;
+            --content-bg-color: #000000;
+            --text-color: #ffffff;
+            --muted-color: #888888;
+            --border-color: #333333;
+            --primary-color: #ffffff;
+            --success-color: #22c55e;
+            --highlight-bg-color: rgba(255, 255, 255, 0.05);
+        }
+
+        html.light-mode {
+            --page-bg-color: #f0f2f5;
+            --content-bg-color: #ffffff;
+            --text-color: #000000;
+            --muted-color: #666666;
+            --border-color: #dddddd;
+            --primary-color: #000000;
+            --highlight-bg-color: rgba(0, 0, 0, 0.05);
+        }
+
+        html {
+            background-color: var(--page-bg-color);
+            transition: background-color 0.3s ease;
+        }
+
+        body {
+            background-color: var(--content-bg-color);
+            color: var(--text-color);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            text-align: center;
+            padding: 2rem 3rem;
+            margin: 2.5rem;
+            min-height: calc(100vh - 5rem);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+
+        .site-header, .site-footer {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .site-header {
+            font-size: 0.9em;
+            padding-bottom: 1.5rem;
+        }
+        
+        .site-footer {
+            font-size: 0.9em;
+            padding-top: 1.5rem;
+        }
+
+        .logo {
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        
+        .header-nav {
+            color: var(--muted-color);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .theme-switcher {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 0.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .theme-switcher:hover {
+            background-color: var(--text-color);
+            color: var(--page-bg-color);
+            transform: rotate(15deg);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 1rem;
+            flex-grow: 1;
+            padding: 1rem 0;
+            overflow-y: auto;
+        }
+
+        /* Timetable Styles */
+        .timetable {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .timetable-row {
+            display: flex;
+            align-items: stretch;
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.3s ease;
+        }
+        
+        .timetable-row.current-time {
+            background-color: var(--highlight-bg-color);
+        }
+
+        .timetable-row:last-child {
+            border-bottom: none;
+        }
+
+        .time-cell {
+            font-weight: 500;
+            color: var(--muted-color);
+            padding: 1rem;
+            width: 120px;
+            text-align: right;
+            border-right: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+
+        .task-cell {
+            padding: 1rem;
+            text-align: left;
+            flex-grow: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .task-text {
+            cursor: pointer;
+        }
+
+        .task-text.completed {
+            text-decoration: line-through;
+            color: var(--muted-color);
+            opacity: 0.7;
+        }
+
+        .task-actions button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.8em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .task-actions button:hover {
+            background-color: var(--text-color);
+            border-color: var(--text-color);
+            color: var(--page-bg-color);
+        }
+        
+        .task-actions button.delete-btn:hover {
+            background-color: #ef4444; /* Red */
+            border-color: #ef4444;
+            color: white;
+        }
+
+        .add-task-btn {
+             color: var(--muted-color);
+             font-style: italic;
+             cursor: pointer;
+             transition: color 0.3s ease;
+        }
+        .add-task-btn:hover {
+            color: var(--text-color);
+        }
+        
+        .footer-links a {
+            color: var(--muted-color);
+            text-decoration: none;
+            margin-right: 1.5rem;
+            transition: color 0.3s ease;
+            font-weight: 500;
+        }
+        
+        .footer-links a:hover {
+            color: var(--text-color);
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+            z-index: 1000;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background: #111;
+            padding: 2.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+            width: 90%;
+            max-width: 500px;
+        }
+        
+        html.light-mode .modal-content {
+            background: #fdfdfd;
+        }
+        
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+
+        .modal-content h2 {
+            margin-top: 0;
+            color: var(--text-color);
+            font-size: 1.5em;
+        }
+        
+        #taskInput {
+            width: 100%;
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 1rem;
+            font-size: 1em;
+            border-radius: 8px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            margin-top: 1.5rem;
+            box-sizing: border-box;
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+        
+        .modal-buttons button {
+            flex-grow: 1;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        #saveTaskBtn {
+            background: var(--primary-color);
+            color: var(--content-bg-color);
+        }
+        #saveTaskBtn:hover {
+            opacity: 0.8;
+        }
+        
+        #cancelBtn {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-color);
+        }
+        #cancelBtn:hover {
+            background: var(--border-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                margin: 1rem;
+                padding: 1.5rem;
+                min-height: calc(100vh - 2rem);
+            }
+            .time-cell {
+                width: 80px;
+                font-size: 0.9em;
+                padding: 0.8rem;
+            }
+            .task-cell {
+                padding: 0.8rem;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .site-footer {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="site-header">
+        <div class="logo">Subh's Planner</div>
+        <nav class="header-nav">
+            <span id="currentDate"></span>
+            <button class="theme-switcher" id="themeSwitcher" aria-label="Toggle theme">
+                <!-- Icon will be set by JS -->
+            </button>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div id="timetable" class="timetable">
+            <!-- Timetable rows will be generated by JS -->
+        </div>
+    </div>
+    
+    <footer class="site-footer">
+        <div class="footer-links">
+            <a href="https://github.com/subtlesubh" target="_blank">Github</a>
+            <a href="https://www.instagram.com/hustlewithsubh?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" target="_blank">Instagram</a>
+        </div>
+        <span>Made with ❤️</span>
+    </footer>
+
+    <div class="modal-overlay" id="taskModal">
+        <div class="modal-content">
+            <h2 id="modalTitle"></h2>
+            <input type="text" id="taskInput" placeholder="Enter your task...">
+            <div class="modal-buttons">
+                <button id="cancelBtn">Cancel</button>
+                <button id="saveTaskBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const timetableDiv = document.getElementById('timetable');
+            const themeSwitcher = document.getElementById('themeSwitcher');
+            const taskModal = document.getElementById('taskModal');
+            const modalTitle = document.getElementById('modalTitle');
+            const taskInput = document.getElementById('taskInput');
+            const saveTaskBtn = document.getElementById('saveTaskBtn');
+            const cancelBtn = document.getElementById('cancelBtn');
+            const currentDateEl = document.getElementById('currentDate');
+
+            // --- State ---
+            let tasks = {};
+            let editingHour = null;
+            let currentTimeInterval;
+
+            // --- Sound and Confetti Logic (from reference) ---
+            let audioCtx;
+            function getAudioContext() {
+                if (!audioCtx) {
+                    try {
+                        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    } catch(e) {
+                        console.error("Web Audio API is not supported in this browser");
+                    }
+                }
+                return audioCtx;
+            }
+
+            function playSound(notes, duration = 0.1, volume = 0.2) {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                let startTime = ctx.currentTime;
+                notes.forEach((note, i) => {
+                    const oscillator = ctx.createOscillator();
+                    const gainNode = ctx.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(ctx.destination);
+                    oscillator.type = 'sine';
+                    oscillator.frequency.setValueAtTime(note, startTime + i * duration);
+                    gainNode.gain.setValueAtTime(volume, startTime + i * duration);
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, startTime + i * duration + duration);
+                    oscillator.start(startTime + i * duration);
+                    oscillator.stop(startTime + i * duration + duration);
+                });
+            }
+
+            function playCompletionSound() { playSound([523.25, 659.25, 783.99, 1046.50], 0.1, 0.3); }
+            function playAddTaskSound() { playSound([440, 587.33], 0.08, 0.2); }
+            function playDeleteSound() { playSound([587.33, 440], 0.08, 0.2); }
+
+            function triggerConfetti() {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                }
+            }
+
+            // --- Theme Management ---
+            const sunIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>`;
+            const moonIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>`;
+
+            function applyTheme(theme) {
+                if (theme === 'light') {
+                    document.documentElement.classList.add('light-mode');
+                    themeSwitcher.innerHTML = sunIcon;
+                } else {
+                    document.documentElement.classList.remove('light-mode');
+                    themeSwitcher.innerHTML = moonIcon;
+                }
+                localStorage.setItem('timetableTheme', theme);
+            }
+
+            themeSwitcher.addEventListener('click', () => {
+                const currentTheme = document.documentElement.classList.contains('light-mode') ? 'light' : 'dark';
+                applyTheme(currentTheme === 'light' ? 'dark' : 'light');
+            });
+
+            // --- Data Persistence ---
+            function loadTasks() {
+                const savedTasks = localStorage.getItem('dailyTimetableTasks');
+                tasks = savedTasks ? JSON.parse(savedTasks) : {};
+            }
+
+            function saveTasks() {
+                localStorage.setItem('dailyTimetableTasks', JSON.stringify(tasks));
+            }
+
+            // --- Timetable Rendering ---
+            function formatHour(hour) {
+                const ampm = hour >= 12 ? 'PM' : 'AM';
+                const h = hour % 12 || 12; // convert 0 to 12
+                return `${h}:00 ${ampm}`;
+            }
+
+            function generateTimetable() {
+                timetableDiv.innerHTML = '';
+                for (let hour = 0; hour < 24; hour++) {
+                    const row = document.createElement('div');
+                    row.className = 'timetable-row';
+                    row.dataset.hour = hour;
+
+                    const taskData = tasks[hour] || { text: '', completed: false };
+
+                    row.innerHTML = `
+                        <div class="time-cell">${formatHour(hour)}</div>
+                        <div class="task-cell" id="task-cell-${hour}">
+                            ${createTaskContent(hour, taskData)}
+                        </div>
+                    `;
+                    timetableDiv.appendChild(row);
+                }
+                updateCurrentTimeIndicator();
+            }
+            
+            function createTaskContent(hour, taskData) {
+                if (taskData.text) {
+                    return `
+                        <span class="task-text ${taskData.completed ? 'completed' : ''}" data-action="toggle">${taskData.text}</span>
+                        <div class="task-actions">
+                            <button data-action="edit">Edit</button>
+                            <button data-action="delete" class="delete-btn">Delete</button>
+                        </div>
+                    `;
+                } else {
+                    return `<span class="add-task-btn" data-action="add">＋ Add task</span>`;
+                }
+            }
+            
+            function rerenderHour(hour) {
+                const cell = document.getElementById(`task-cell-${hour}`);
+                const taskData = tasks[hour] || { text: '', completed: false };
+                cell.innerHTML = createTaskContent(hour, taskData);
+            }
+
+            // --- Modal Logic ---
+            function openModal(hour) {
+                editingHour = hour;
+                const task = tasks[hour] || { text: '' };
+                modalTitle.textContent = `Task for ${formatHour(hour)}`;
+                taskInput.value = task.text;
+                taskModal.classList.add('visible');
+                taskInput.focus();
+            }
+
+            function closeModal() {
+                taskModal.classList.remove('visible');
+                taskInput.value = '';
+                editingHour = null;
+            }
+
+            saveTaskBtn.addEventListener('click', () => {
+                const text = taskInput.value.trim();
+                if (editingHour !== null && text) {
+                    if (!tasks[editingHour] || !tasks[editingHour].text) {
+                        playAddTaskSound();
+                    }
+                    tasks[editingHour] = { ...tasks[editingHour], text: text };
+                    saveTasks();
+                    rerenderHour(editingHour);
+                }
+                closeModal();
+            });
+
+            cancelBtn.addEventListener('click', closeModal);
+            taskModal.addEventListener('click', (e) => {
+                if (e.target === taskModal) closeModal();
+            });
+
+            // --- Event Handling ---
+            timetableDiv.addEventListener('click', (e) => {
+                const target = e.target;
+                const row = target.closest('.timetable-row');
+                if (!row) return;
+
+                const hour = row.dataset.hour;
+                const action = target.dataset.action;
+
+                if (action === 'add' || action === 'edit') {
+                    openModal(hour);
+                } else if (action === 'delete') {
+                    playDeleteSound();
+                    delete tasks[hour];
+                    saveTasks();
+                    rerenderHour(hour);
+                } else if (action === 'toggle') {
+                    const task = tasks[hour];
+                    if (task) {
+                        task.completed = !task.completed;
+                        if(task.completed) {
+                           playCompletionSound();
+                           triggerConfetti();
+                        }
+                        saveTasks();
+                        rerenderHour(hour);
+                    }
+                }
+            });
+
+            // --- Time Management ---
+            function updateCurrentTimeIndicator() {
+                const currentHour = new Date().getHours();
+                document.querySelectorAll('.timetable-row').forEach(row => {
+                    row.classList.remove('current-time');
+                });
+                const currentRow = document.querySelector(`.timetable-row[data-hour="${currentHour}"]`);
+                if (currentRow) {
+                    currentRow.classList.add('current-time');
+                    // Scroll to the current time on initial load
+                    if (!currentTimeInterval) {
+                       setTimeout(() => {
+                           currentRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                       }, 500);
+                    }
+                }
+            }
+            
+            function updateDate() {
+                const now = new Date();
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                currentDateEl.textContent = now.toLocaleDateString('en-US', options);
+            }
+
+            // --- Initialization ---
+            function init() {
+                const savedTheme = localStorage.getItem('timetableTheme') || 'dark';
+                applyTheme(savedTheme);
+                
+                updateDate();
+                loadTasks();
+                generateTimetable();
+                
+                // Update time indicator every minute
+                currentTimeInterval = setInterval(updateCurrentTimeIndicator, 60000);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
