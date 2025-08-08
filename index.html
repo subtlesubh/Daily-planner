@@ -18,6 +18,7 @@
             --primary-color: #ffffff;
             --success-color: #22c55e;
             --highlight-bg-color: rgba(255, 255, 255, 0.05);
+            --danger-color: #ef4444;
         }
 
         html.light-mode {
@@ -60,11 +61,13 @@
             align-items: center;
             padding: 0;
             flex-shrink: 0;
+            flex-wrap: wrap;
         }
 
         .site-header {
             font-size: 0.9em;
             padding-bottom: 1.5rem;
+            gap: 1rem;
         }
         
         .site-footer {
@@ -83,7 +86,8 @@
             font-weight: 500;
             display: flex;
             align-items: center;
-            gap: 1.5rem;
+            gap: 1rem;
+            flex-wrap: wrap;
         }
 
         .theme-switcher {
@@ -103,6 +107,53 @@
             background-color: var(--text-color);
             color: var(--page-bg-color);
             transform: rotate(15deg);
+        }
+        
+        .control-button {
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-color);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .control-button:hover {
+            background-color: var(--text-color);
+            border-color: var(--text-color);
+            color: var(--page-bg-color);
+        }
+
+        .time-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .time-selector label {
+            font-size: 0.9em;
+        }
+
+        .time-selector select {
+            background: transparent;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.4rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.9em;
+        }
+
+        html.light-mode .time-selector select {
+            background-color: var(--content-bg-color);
+        }
+
+        .time-selector select option {
+            background: var(--content-bg-color);
+            color: var(--text-color);
         }
 
         .container {
@@ -188,8 +239,8 @@
         }
         
         .task-actions button.delete-btn:hover {
-            background-color: #ef4444; /* Red */
-            border-color: #ef4444;
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
             color: white;
         }
 
@@ -280,10 +331,11 @@
             display: flex;
             gap: 1rem;
             margin-top: 1.5rem;
+            justify-content: flex-end;
         }
         
         .modal-buttons button {
-            flex-grow: 1;
+            flex-grow: 0;
             border: none;
             padding: 12px 24px;
             border-radius: 8px;
@@ -302,16 +354,21 @@
             opacity: 0.8;
         }
         
-        #cancelBtn {
+        #cancelBtn, #alertOkBtn {
             background: transparent;
             border: 1px solid var(--border-color);
             color: var(--muted-color);
         }
-        #cancelBtn:hover {
+        #cancelBtn:hover, #alertOkBtn:hover {
             background: var(--border-color);
         }
 
         /* Responsive Design */
+        @media (max-width: 900px) {
+            .site-header {
+                justify-content: center;
+            }
+        }
         @media (max-width: 768px) {
             body {
                 margin: 1rem;
@@ -329,7 +386,7 @@
                 align-items: flex-start;
                 gap: 0.5rem;
             }
-            .site-footer {
+            .site-footer, .site-header {
                 flex-direction: column;
                 gap: 1rem;
             }
@@ -341,6 +398,17 @@
         <div class="logo">Subh's Planner</div>
         <nav class="header-nav">
             <span id="currentDate"></span>
+            <div class="time-selector">
+                <label for="startTimeSelect">Start:</label>
+                <select id="startTimeSelect"></select>
+            </div>
+            <div class="time-selector">
+                <label for="endTimeSelect">End:</label>
+                <select id="endTimeSelect"></select>
+            </div>
+            <button class="control-button" id="importBtn">Import</button>
+            <button class="control-button" id="exportBtn">Export</button>
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
             <button class="theme-switcher" id="themeSwitcher" aria-label="Toggle theme">
                 <!-- Icon will be set by JS -->
             </button>
@@ -361,6 +429,7 @@
         <span>Made with ❤️</span>
     </footer>
 
+    <!-- Modal for adding/editing tasks -->
     <div class="modal-overlay" id="taskModal">
         <div class="modal-content">
             <h2 id="modalTitle"></h2>
@@ -372,32 +441,56 @@
         </div>
     </div>
 
+    <!-- Modal for generic alerts -->
+    <div class="modal-overlay" id="alertModal">
+        <div class="modal-content">
+            <h2 id="alertTitle"></h2>
+            <p id="alertMessage"></p>
+            <div class="modal-buttons">
+                <button id="alertOkBtn">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- DOM Elements ---
             const timetableDiv = document.getElementById('timetable');
             const themeSwitcher = document.getElementById('themeSwitcher');
+            const currentDateEl = document.getElementById('currentDate');
+            
             const taskModal = document.getElementById('taskModal');
             const modalTitle = document.getElementById('modalTitle');
             const taskInput = document.getElementById('taskInput');
             const saveTaskBtn = document.getElementById('saveTaskBtn');
             const cancelBtn = document.getElementById('cancelBtn');
-            const currentDateEl = document.getElementById('currentDate');
+
+            const alertModal = document.getElementById('alertModal');
+            const alertTitle = document.getElementById('alertTitle');
+            const alertMessage = document.getElementById('alertMessage');
+            const alertOkBtn = document.getElementById('alertOkBtn');
+
+            const importBtn = document.getElementById('importBtn');
+            const exportBtn = document.getElementById('exportBtn');
+            const fileInput = document.getElementById('fileInput');
+
+            const startTimeSelect = document.getElementById('startTimeSelect');
+            const endTimeSelect = document.getElementById('endTimeSelect');
 
             // --- State ---
             let tasks = {};
             let editingHour = null;
             let currentTimeInterval;
+            let startTime = 0;
+            let endTime = 23;
 
-            // --- Sound and Confetti Logic (from reference) ---
+            // --- Sound and Confetti Logic ---
             let audioCtx;
             function getAudioContext() {
                 if (!audioCtx) {
                     try {
                         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    } catch(e) {
-                        console.error("Web Audio API is not supported in this browser");
-                    }
+                    } catch(e) { console.error("Web Audio API is not supported in this browser"); }
                 }
                 return audioCtx;
             }
@@ -423,11 +516,20 @@
             function playCompletionSound() { playSound([523.25, 659.25, 783.99, 1046.50], 0.1, 0.3); }
             function playAddTaskSound() { playSound([440, 587.33], 0.08, 0.2); }
             function playDeleteSound() { playSound([587.33, 440], 0.08, 0.2); }
+            function playImportSound() { playSound([392, 523.25], 0.08, 0.2); }
 
             function triggerConfetti() {
                 if (typeof confetti === 'function') {
                     confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
                 }
+            }
+
+            // --- Helper Functions ---
+            function formatHour(hour) {
+                const h = parseInt(hour);
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const formattedHour = h % 12 || 12;
+                return `${formattedHour}:00 ${ampm}`;
             }
 
             // --- Theme Management ---
@@ -442,34 +544,42 @@
                     document.documentElement.classList.remove('light-mode');
                     themeSwitcher.innerHTML = moonIcon;
                 }
-                localStorage.setItem('timetableTheme', theme);
             }
-
-            themeSwitcher.addEventListener('click', () => {
-                const currentTheme = document.documentElement.classList.contains('light-mode') ? 'light' : 'dark';
-                applyTheme(currentTheme === 'light' ? 'dark' : 'light');
-            });
 
             // --- Data Persistence ---
-            function loadTasks() {
-                const savedTasks = localStorage.getItem('dailyTimetableTasks');
-                tasks = savedTasks ? JSON.parse(savedTasks) : {};
+            function loadSettings() {
+                const settings = JSON.parse(localStorage.getItem('subhPlannerSettings')) || {};
+                tasks = settings.tasks || {};
+                startTime = settings.startTime !== undefined ? parseInt(settings.startTime) : 8; // Default start time 8 AM
+                endTime = settings.endTime !== undefined ? parseInt(settings.endTime) : 22; // Default end time 10 PM
+                applyTheme(settings.theme || 'dark');
             }
 
-            function saveTasks() {
-                localStorage.setItem('dailyTimetableTasks', JSON.stringify(tasks));
+            function saveSettings() {
+                const settings = {
+                    tasks: tasks,
+                    startTime: startTime,
+                    endTime: endTime,
+                    theme: document.documentElement.classList.contains('light-mode') ? 'light' : 'dark'
+                };
+                localStorage.setItem('subhPlannerSettings', JSON.stringify(settings));
             }
 
             // --- Timetable Rendering ---
-            function formatHour(hour) {
-                const ampm = hour >= 12 ? 'PM' : 'AM';
-                const h = hour % 12 || 12; // convert 0 to 12
-                return `${h}:00 ${ampm}`;
+            function populateTimeSelectors() {
+                for (let i = 0; i < 24; i++) {
+                    const startOption = new Option(formatHour(i), i);
+                    const endOption = new Option(formatHour(i), i);
+                    startTimeSelect.add(startOption);
+                    endTimeSelect.add(endOption);
+                }
+                startTimeSelect.value = startTime;
+                endTimeSelect.value = endTime;
             }
 
             function generateTimetable() {
                 timetableDiv.innerHTML = '';
-                for (let hour = 0; hour < 24; hour++) {
+                for (let hour = startTime; hour <= endTime; hour++) {
                     const row = document.createElement('div');
                     row.className = 'timetable-row';
                     row.dataset.hour = hour;
@@ -503,12 +613,14 @@
             
             function rerenderHour(hour) {
                 const cell = document.getElementById(`task-cell-${hour}`);
-                const taskData = tasks[hour] || { text: '', completed: false };
-                cell.innerHTML = createTaskContent(hour, taskData);
+                if (cell) {
+                    const taskData = tasks[hour] || { text: '', completed: false };
+                    cell.innerHTML = createTaskContent(hour, taskData);
+                }
             }
 
             // --- Modal Logic ---
-            function openModal(hour) {
+            function openTaskModal(hour) {
                 editingHour = hour;
                 const task = tasks[hour] || { text: '' };
                 modalTitle.textContent = `Task for ${formatHour(hour)}`;
@@ -517,12 +629,23 @@
                 taskInput.focus();
             }
 
-            function closeModal() {
+            function closeTaskModal() {
                 taskModal.classList.remove('visible');
                 taskInput.value = '';
                 editingHour = null;
             }
+            
+            function showGenericAlert(title, message) {
+                alertTitle.textContent = title;
+                alertMessage.textContent = message;
+                alertModal.classList.add('visible');
+            }
 
+            function closeGenericAlert() {
+                alertModal.classList.remove('visible');
+            }
+
+            // --- Event Handling ---
             saveTaskBtn.addEventListener('click', () => {
                 const text = taskInput.value.trim();
                 if (editingHour !== null && text) {
@@ -530,18 +653,18 @@
                         playAddTaskSound();
                     }
                     tasks[editingHour] = { ...tasks[editingHour], text: text };
-                    saveTasks();
+                    saveSettings();
                     rerenderHour(editingHour);
                 }
-                closeModal();
+                closeTaskModal();
             });
 
-            cancelBtn.addEventListener('click', closeModal);
-            taskModal.addEventListener('click', (e) => {
-                if (e.target === taskModal) closeModal();
-            });
+            cancelBtn.addEventListener('click', closeTaskModal);
+            taskModal.addEventListener('click', (e) => { if (e.target === taskModal) closeTaskModal(); });
+            
+            alertOkBtn.addEventListener('click', closeGenericAlert);
+            alertModal.addEventListener('click', (e) => { if (e.target === alertModal) closeGenericAlert(); });
 
-            // --- Event Handling ---
             timetableDiv.addEventListener('click', (e) => {
                 const target = e.target;
                 const row = target.closest('.timetable-row');
@@ -551,11 +674,11 @@
                 const action = target.dataset.action;
 
                 if (action === 'add' || action === 'edit') {
-                    openModal(hour);
+                    openTaskModal(hour);
                 } else if (action === 'delete') {
                     playDeleteSound();
                     delete tasks[hour];
-                    saveTasks();
+                    saveSettings();
                     rerenderHour(hour);
                 } else if (action === 'toggle') {
                     const task = tasks[hour];
@@ -565,10 +688,79 @@
                            playCompletionSound();
                            triggerConfetti();
                         }
-                        saveTasks();
+                        saveSettings();
                         rerenderHour(hour);
                     }
                 }
+            });
+
+            themeSwitcher.addEventListener('click', () => {
+                applyTheme(document.documentElement.classList.contains('light-mode') ? 'dark' : 'light');
+                saveSettings();
+            });
+
+            startTimeSelect.addEventListener('change', (e) => {
+                const newStart = parseInt(e.target.value);
+                if (newStart >= endTime) {
+                    showGenericAlert('Invalid Time Range', 'Start time must be before the end time.');
+                    e.target.value = startTime; // Revert
+                    return;
+                }
+                startTime = newStart;
+                saveSettings();
+                generateTimetable();
+            });
+
+            endTimeSelect.addEventListener('change', (e) => {
+                const newEnd = parseInt(e.target.value);
+                if (newEnd <= startTime) {
+                    showGenericAlert('Invalid Time Range', 'End time must be after the start time.');
+                    e.target.value = endTime; // Revert
+                    return;
+                }
+                endTime = newEnd;
+                saveSettings();
+                generateTimetable();
+            });
+
+            // --- Import / Export Logic ---
+            importBtn.addEventListener('click', () => fileInput.click());
+
+            exportBtn.addEventListener('click', () => {
+                const dataStr = JSON.stringify(tasks, null, 2);
+                const dataBlob = new Blob([dataStr], {type: "application/json"});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.download = `subhs-planner-data-${new Date().toISOString().slice(0,10)}.json`;
+                link.href = url;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const importedTasks = JSON.parse(e.target.result);
+                        if (typeof importedTasks !== 'object' || importedTasks === null || Array.isArray(importedTasks)) {
+                            throw new Error("Invalid JSON format. Must be an object.");
+                        }
+                        tasks = Object.assign({}, tasks, importedTasks);
+                        saveSettings();
+                        generateTimetable();
+                        playImportSound();
+                    } catch (error) {
+                        showGenericAlert('Import Error', `Could not import file. Please ensure it's a valid JSON. Error: ${error.message}`);
+                    } finally {
+                        fileInput.value = '';
+                    }
+                };
+                reader.onerror = () => { showGenericAlert('File Error', 'An error occurred while reading the file.'); fileInput.value = ''; };
+                reader.readAsText(file);
             });
 
             // --- Time Management ---
@@ -580,7 +772,6 @@
                 const currentRow = document.querySelector(`.timetable-row[data-hour="${currentHour}"]`);
                 if (currentRow) {
                     currentRow.classList.add('current-time');
-                    // Scroll to the current time on initial load
                     if (!currentTimeInterval) {
                        setTimeout(() => {
                            currentRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -597,14 +788,10 @@
 
             // --- Initialization ---
             function init() {
-                const savedTheme = localStorage.getItem('timetableTheme') || 'dark';
-                applyTheme(savedTheme);
-                
+                loadSettings();
+                populateTimeSelectors();
                 updateDate();
-                loadTasks();
                 generateTimetable();
-                
-                // Update time indicator every minute
                 currentTimeInterval = setInterval(updateCurrentTimeIndicator, 60000);
             }
 
